@@ -62,49 +62,70 @@ afterEach(() => {
 describe('e2e against a real socket.io server', () => {
   it('★ connects and reports connected', async () => {
     const socket = io(`ws://localhost:${port}`, { forceNew: true })
-    await new Promise<void>((resolve, reject) => {
-      socket.on('connect', () => resolve())
-      socket.on('connect_error', reject)
-    })
-    expect(socket.connected).toBe(true)
-    socket.disconnect()
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.on('connect', () => resolve())
+        socket.on('connect_error', reject)
+      })
+      expect(socket.connected).toBe(true)
+    } finally {
+      socket.disconnect()
+    }
   })
 
   it('★ round-trips an ACK', async () => {
     const socket = io(`ws://localhost:${port}`, { forceNew: true })
-    const resp = await new Promise((resolve) => {
-      socket.on('connect', () => socket.emit('echo', { a: 1 }, resolve))
-    })
-    expect(resp).toEqual({ a: 1 })
-    socket.disconnect()
+    try {
+      const resp = await new Promise((resolve, reject) => {
+        socket.on('connect_error', reject)
+        socket.on('connect', () => socket.emit('echo', { a: 1 }, resolve))
+      })
+      expect(resp).toEqual({ a: 1 })
+    } finally {
+      socket.disconnect()
+    }
   })
 
   it('receives a server-emitted event', async () => {
     const socket = io(`ws://localhost:${port}`, { forceNew: true })
-    const shouted = await new Promise((resolve) => {
-      socket.on('connect', () => {
-        socket.on('shouted', resolve)
-        socket.emit('shout', 'hi')
+    try {
+      const shouted = await new Promise((resolve, reject) => {
+        socket.on('connect_error', reject)
+        socket.on('connect', () => {
+          socket.on('shouted', resolve)
+          socket.emit('shout', 'hi')
+        })
       })
-    })
-    expect(shouted).toBe('HI')
-    socket.disconnect()
+      expect(shouted).toBe('HI')
+    } finally {
+      socket.disconnect()
+    }
   })
 
   it('round-trips binary (ArrayBuffer)', async () => {
     const socket = io(`ws://localhost:${port}`, { forceNew: true })
     const out = new Uint8Array([1, 2, 3, 4])
-    const echoed = await new Promise<ArrayBuffer>((resolve) => {
-      socket.on('connect', () => socket.emit('bin', out.buffer, resolve))
-    })
-    expect(new Uint8Array(echoed)).toEqual(out)
-    socket.disconnect()
+    try {
+      const echoed = await new Promise<ArrayBuffer>((resolve, reject) => {
+        socket.on('connect_error', reject)
+        socket.on('connect', () => socket.emit('bin', out.buffer, resolve))
+      })
+      expect(new Uint8Array(echoed)).toEqual(out)
+    } finally {
+      socket.disconnect()
+    }
   })
 
   it('connects to a namespace', async () => {
     const admin = io(`ws://localhost:${port}/admin`, { forceNew: true })
-    const welcome = await new Promise((resolve) => admin.on('welcome', resolve))
-    expect(welcome).toBe('admin')
-    admin.disconnect()
+    try {
+      const welcome = await new Promise((resolve, reject) => {
+        admin.on('connect_error', reject)
+        admin.on('welcome', resolve)
+      })
+      expect(welcome).toBe('admin')
+    } finally {
+      admin.disconnect()
+    }
   })
 })

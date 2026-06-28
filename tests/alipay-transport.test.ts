@@ -103,6 +103,7 @@ describe('AlipayTransport', () => {
     expect(drain).not.toHaveBeenCalled()
     vi.runAllTimers()
     expect(drain).toHaveBeenCalled()
+    expect((t as any).writable).toBe(true)
     vi.useRealTimers()
   })
 
