@@ -18,10 +18,10 @@
 ```
 
 ```bash
-pnpm add @chooin/socket.io-mp socket.io-client
+pnpm add @chooin/socket.io-mp
 ```
 
-> `socket.io-client` 为 peer/runtime 依赖，需显式安装。
+> `socket.io-client` 是本包的运行时依赖（`dependencies`），会随本包自动安装，无需单独安装。仅当你想在代码里直接 import 它（例如引用 `Socket` 类型）或自行锁定版本时，再显式 `pnpm add socket.io-client`。
 
 ## 快速开始
 
