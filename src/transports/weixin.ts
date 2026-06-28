@@ -11,7 +11,7 @@ export class WeixinTransport extends Transport {
   }
 
   protected doOpen(): void {
-    const query = (this.query ?? (this.opts as any).query ?? {}) as Record<string, string>
+    const query = this.query as Record<string, string>
     const url = buildUri(this.opts as any, query)
     this.task = wx.connectSocket({
       url,
@@ -29,6 +29,7 @@ export class WeixinTransport extends Transport {
   }
 
   protected write(packets: Packet[]): void {
+    if (packets.length === 0) return
     this.writable = false
     let remaining = packets.length
     for (const packet of packets) {

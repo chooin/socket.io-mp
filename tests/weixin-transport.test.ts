@@ -83,6 +83,16 @@ describe('WeixinTransport', () => {
     expect((t as any).writable).toBe(true)
   })
 
+  it('write([]) does not leave the transport stuck non-writable', () => {
+    const { h } = installFakeWx()
+    const t = new WeixinTransport(makeOpts())
+    t.open()
+    h.open() // onOpen sets writable = true
+    expect((t as any).writable).toBe(true)
+    ;(t as any).write([])
+    expect((t as any).writable).toBe(true)
+  })
+
   it('write sends an ArrayBuffer for a binary packet', () => {
     const { task } = installFakeWx()
     const t = new WeixinTransport(makeOpts())
