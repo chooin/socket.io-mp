@@ -111,6 +111,15 @@ describe('AlipayTransport', () => {
     expect(my.sendSocketMessage).toHaveBeenCalledWith({ data: 'BASE64', isBuffer: true })
   })
 
+  it('write converts a TypedArray binary packet to ArrayBuffer before base64', () => {
+    const { my } = installFakeMy()
+    const t = new AlipayTransport(makeOpts())
+    t.open()
+    ;(t as any).write([{ type: 'message', data: new Uint8Array([9, 8, 7]) }])
+    expect(my.arrayBufferToBase64).toHaveBeenCalled()
+    expect(my.arrayBufferToBase64.mock.calls[0][0]).toBeInstanceOf(ArrayBuffer)
+  })
+
   it('write([]) does not leave the transport stuck non-writable', () => {
     const { h } = installFakeMy()
     const t = new AlipayTransport(makeOpts())
@@ -127,6 +136,10 @@ describe('AlipayTransport', () => {
     t.open()
     ;(t as any).doClose()
     expect(my.closeSocket).toHaveBeenCalled()
-    expect(my.offSocketMessage).toHaveBeenCalled()
+    // 必须用注册时的同一引用反注册,否则 off* 形同空操作
+    expect(my.offSocketOpen).toHaveBeenCalledWith((t as any).onAliOpen)
+    expect(my.offSocketMessage).toHaveBeenCalledWith((t as any).onAliMessage)
+    expect(my.offSocketClose).toHaveBeenCalledWith((t as any).onAliClose)
+    expect(my.offSocketError).toHaveBeenCalledWith((t as any).onAliError)
   })
 })

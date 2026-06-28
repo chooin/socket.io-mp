@@ -66,7 +66,12 @@ export class AlipayTransport extends Transport {
         if (typeof data === 'string') {
           my.sendSocketMessage({ data, isBuffer: false })
         } else {
-          my.sendSocketMessage({ data: my.arrayBufferToBase64(data as ArrayBuffer), isBuffer: true })
+          // 二进制可能是 ArrayBuffer,也可能是 TypedArray(用户 emit Uint8Array 等);
+          // 取出底层精确字节再 base64,避免把 TypedArray 当 ArrayBuffer 误传。
+          const ab = ArrayBuffer.isView(data)
+            ? (data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer)
+            : (data as ArrayBuffer)
+          my.sendSocketMessage({ data: my.arrayBufferToBase64(ab), isBuffer: true })
         }
         if (--remaining === 0) {
           this.writable = true
