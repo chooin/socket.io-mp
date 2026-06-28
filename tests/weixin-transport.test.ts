@@ -72,6 +72,7 @@ describe('WeixinTransport', () => {
   })
 
   it('write encodes a text packet, sends via task, then drains', () => {
+    vi.useFakeTimers()
     const { task } = installFakeWx()
     const t = new WeixinTransport(makeOpts())
     const drain = vi.fn()
@@ -79,8 +80,12 @@ describe('WeixinTransport', () => {
     t.open()
     ;(t as any).write([{ type: 'message', data: 'hi' }])
     expect(task.send).toHaveBeenCalledWith({ data: '4hi' })
+    // drain is deferred via setTimeout to prevent synchronous re-entry
+    expect(drain).not.toHaveBeenCalled()
+    vi.runAllTimers()
     expect(drain).toHaveBeenCalled()
     expect((t as any).writable).toBe(true)
+    vi.useRealTimers()
   })
 
   it('write([]) does not leave the transport stuck non-writable', () => {

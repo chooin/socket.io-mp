@@ -36,8 +36,13 @@ export class WeixinTransport extends Transport {
       encodePacket(packet, true, (data) => {
         this.task?.send({ data: data as string | ArrayBuffer })
         if (--remaining === 0) {
-          this.writable = true
-          this.emitReserved('drain')
+          // Defer drain so callers don't re-enter write() synchronously
+          // (encodePacket callbacks fire sync; without this setTimeout the
+          //  engine.io-client flush → write → drain → flush loop blows the stack)
+          setTimeout(() => {
+            this.writable = true
+            this.emitReserved('drain')
+          }, 0)
         }
       })
     }

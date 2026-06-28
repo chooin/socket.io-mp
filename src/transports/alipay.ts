@@ -74,8 +74,11 @@ export class AlipayTransport extends Transport {
           my.sendSocketMessage({ data: my.arrayBufferToBase64(ab), isBuffer: true })
         }
         if (--remaining === 0) {
-          this.writable = true
-          this.emitReserved('drain')
+          // Defer drain so callers don't re-enter write() synchronously
+          setTimeout(() => {
+            this.writable = true
+            this.emitReserved('drain')
+          }, 0)
         }
       })
     }

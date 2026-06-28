@@ -91,6 +91,7 @@ describe('AlipayTransport', () => {
   })
 
   it('write sends a text packet with isBuffer=false then drains', () => {
+    vi.useFakeTimers()
     const { my } = installFakeMy()
     const t = new AlipayTransport(makeOpts())
     const drain = vi.fn()
@@ -98,7 +99,11 @@ describe('AlipayTransport', () => {
     t.open()
     ;(t as any).write([{ type: 'message', data: 'hi' }])
     expect(my.sendSocketMessage).toHaveBeenCalledWith({ data: '4hi', isBuffer: false })
+    // drain is deferred via setTimeout to prevent synchronous re-entry
+    expect(drain).not.toHaveBeenCalled()
+    vi.runAllTimers()
     expect(drain).toHaveBeenCalled()
+    vi.useRealTimers()
   })
 
   it('write base64-encodes a binary packet and sets isBuffer=true', () => {
