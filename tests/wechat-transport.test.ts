@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { WeixinTransport } from '../src/transports/weixin'
+import { WechatTransport } from '../src/transports/wechat'
 
 function installFakeWx() {
   const h: Record<string, (arg?: any) => void> = {}
@@ -33,15 +33,15 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('WeixinTransport', () => {
+describe('WechatTransport', () => {
   it('name is "websocket"', () => {
     installFakeWx()
-    expect(new WeixinTransport(makeOpts()).name).toBe('websocket')
+    expect(new WechatTransport(makeOpts()).name).toBe('websocket')
   })
 
   it('doOpen connects with EIO=4 & transport=websocket in the url', () => {
     const { connectSocket } = installFakeWx()
-    new WeixinTransport(makeOpts()).open()
+    new WechatTransport(makeOpts()).open()
     expect(connectSocket).toHaveBeenCalledTimes(1)
     const url = connectSocket.mock.calls[0][0].url as string
     expect(url).toContain('EIO=4')
@@ -50,7 +50,7 @@ describe('WeixinTransport', () => {
 
   it('emits "open" when the socket opens', () => {
     const { h } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     const opened = vi.fn()
     ;(t as any).on('open', opened)
     t.open()
@@ -60,7 +60,7 @@ describe('WeixinTransport', () => {
 
   it('decodes an incoming text frame into a packet', () => {
     const { h } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     const onPacket = vi.fn()
     ;(t as any).on('packet', onPacket)
     t.open()
@@ -74,7 +74,7 @@ describe('WeixinTransport', () => {
   it('write encodes a text packet, sends via task, then drains', () => {
     vi.useFakeTimers()
     const { task } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     const drain = vi.fn()
     ;(t as any).on('drain', drain)
     t.open()
@@ -90,7 +90,7 @@ describe('WeixinTransport', () => {
 
   it('write([]) does not leave the transport stuck non-writable', () => {
     const { h } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     t.open()
     h.open() // onOpen sets writable = true
     expect((t as any).writable).toBe(true)
@@ -100,7 +100,7 @@ describe('WeixinTransport', () => {
 
   it('write sends an ArrayBuffer for a binary packet', () => {
     const { task } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     t.open()
     const buf = new Uint8Array([1, 2, 3]).buffer
     ;(t as any).write([{ type: 'message', data: buf }])
@@ -110,7 +110,7 @@ describe('WeixinTransport', () => {
 
   it('emits "close" when the socket closes', () => {
     const { h } = installFakeWx()
-    const t = new WeixinTransport(makeOpts())
+    const t = new WechatTransport(makeOpts())
     const closed = vi.fn()
     ;(t as any).on('close', closed)
     t.open()

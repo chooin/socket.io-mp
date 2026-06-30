@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { io } from '../src/index'
-import { WeixinTransport } from '../src/transports/weixin'
+import { WechatTransport } from '../src/transports/wechat'
 
 afterEach(() => {
   delete (globalThis as any).wx
@@ -11,10 +11,10 @@ describe('io()', () => {
     expect(() => io('ws://localhost:3000', { autoConnect: false })).toThrow(/wx\/my/)
   })
 
-  it('uses the detected transport (weixin) and forces websocket', () => {
+  it('uses the detected transport (wechat) and forces websocket', () => {
     ;(globalThis as any).wx = { connectSocket: () => ({}) }
     const socket = io('ws://localhost:3000', { autoConnect: false })
-    expect(socket.io.opts.transports).toEqual([WeixinTransport])
+    expect(socket.io.opts.transports).toEqual([WechatTransport])
   })
 
   it('respects an injected transports override', () => {

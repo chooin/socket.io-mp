@@ -35,7 +35,7 @@ function toArrayBuffer(buf: Buffer): ArrayBuffer {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 }
 
-// 把 wx.connectSocket mock 成由 ws 驱动的真实连接，让 WeixinTransport 真正连上 server
+// 把 wx.connectSocket mock 成由 ws 驱动的真实连接，让 WechatTransport 真正连上 server
 beforeEach(() => {
   ;(globalThis as any).wx = {
     connectSocket({ url }: { url: string }) {

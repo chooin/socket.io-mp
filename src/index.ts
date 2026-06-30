@@ -14,7 +14,7 @@ export function io(uri: string, opts: MpOptions = {}): Socket {
 
 export default io
 export { Manager, Socket }
-export { WeixinTransport } from './transports/weixin'
+export { WechatTransport } from './transports/wechat'
 export { AlipayTransport } from './transports/alipay'
 export type { MpOptions, TransportCtor } from './types'
 export type { ManagerOptions, SocketOptions } from 'socket.io-client'

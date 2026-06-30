@@ -3,7 +3,7 @@ import { encodePacket } from 'engine.io-parser'
 import type { Packet, RawData } from 'engine.io-parser'
 import { buildUri } from './base'
 
-export class WeixinTransport extends Transport {
+export class WechatTransport extends Transport {
   private task?: WechatMiniprogram.SocketTask
 
   get name(): 'websocket' {

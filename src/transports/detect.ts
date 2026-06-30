@@ -1,11 +1,11 @@
 import type { TransportCtor } from '../types'
-import { WeixinTransport } from './weixin'
+import { WechatTransport } from './wechat'
 import { AlipayTransport } from './alipay'
 
 /** 运行时探测当前小程序平台，返回对应 transport 类。 */
 export function detectTransport(): TransportCtor {
   if (typeof wx !== 'undefined' && typeof wx.connectSocket === 'function') {
-    return WeixinTransport as unknown as TransportCtor
+    return WechatTransport as unknown as TransportCtor
   }
   if (typeof my !== 'undefined' && typeof my.connectSocket === 'function') {
     return AlipayTransport as unknown as TransportCtor
