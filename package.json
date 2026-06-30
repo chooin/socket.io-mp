@@ -1,7 +1,15 @@
 {
   "name": "@chooin/socket.io-mp",
   "version": "0.1.0",
+  "description": "socket.io client for WeChat & Alipay mini-programs — official socket.io-client with a native mini-program WebSocket transport",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chooin/socket.io-mp.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -18,6 +26,22 @@
     "LICENSE"
   ],
   "sideEffects": false,
+  "keywords": [
+    "socket.io",
+    "socket.io-client",
+    "websocket",
+    "miniprogram",
+    "weapp",
+    "wechat",
+    "alipay",
+    "taro",
+    "uni-app"
+  ],
+  "author": "chooin <chooin@126.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
