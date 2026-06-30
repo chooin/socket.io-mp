@@ -53,14 +53,16 @@ onError` to feed received data back into the engine. `buildUri` reproduces upstr
 
 | | WeChat (`wx`) | Alipay (`my`) |
 | --- | --- | --- |
-| Connect API | `wx.connectSocket` returns a per-connection `SocketTask` | `my.connectSocket` + **global** `my.onSocket*` event handlers |
-| Concurrency | multi-connection | **single connection only** (global event model — multiple Managers to different servers interfere) |
+| Connect API | `wx.connectSocket` returns a per-connection `SocketTask` | `my.connectSocket({multiple:true})` returns a per-connection `SocketTask` |
+| Concurrency | multi-connection | multi-connection (`multiple:true`) |
 | Binary | native `ArrayBuffer` end-to-end | `my.arrayBufferToBase64` on send / `my.base64ToArrayBuffer` on receive, gated by the `isBuffer` flag; transparent to the user |
 
-Because Alipay's API is a global singleton, `AlipayTransport` registers handlers as **arrow-function
-class fields** (`onAliOpen`, etc.) so the *exact same reference* is passed to both `my.onSocket*` and
-`my.offSocket*`. Registering with one closure and unregistering with another would make `off*` a no-op
-and leak handlers across connections. Asserted in `tests/alipay-transport.test.ts`.
+`AlipayTransport` uses the `SocketTask` returned by `my.connectSocket({multiple:true})` and binds
+handlers to that task (released with it on GC), exactly like `WechatTransport` — so there is no
+global-handler leak and no single-connection limit. Binary still goes through `my.arrayBufferToBase64`
+on send (`isBuffer:true`) and `my.base64ToArrayBuffer` on receive, because Alipay's `send` only accepts
+strings. The `isBuffer` send flag is missing from `@mini-types/my` (receive side has it) and is asserted
+against a fake task in `tests/alipay-transport.test.ts`; real-device verification of binary send is pending.
 
 **Douyin (`tt`) follows the WeChat model exactly** — `tt.connectSocket` returns a per-connection
 `SocketTask`, binary is native `ArrayBuffer` end-to-end (no base64), up to 5 concurrent connections.

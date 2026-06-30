@@ -155,7 +155,6 @@ socket.connect() // 重新连接
 | 仅 websocket | 小程序无 HTTP polling；transport 固定为 websocket（无需也无法配置 polling 回退） |
 | 鉴权方式 | 用 `auth`（CONNECT 包）或 `query`，而非自定义 header |
 | 合法域名 | 需在小程序后台配置 socket 合法域名（`wss://…`），真机才能连接 |
-| 支付宝单连接 | 支付宝是全局事件式 API，同一时刻仅一条连接；同时连接多个不同服务端的 Manager 会互相干扰 |
 
 其余 API（namespace / ACK / 重连 / 二进制 / 多路复用 / `timeout` 等）与官方完全一致。
 
@@ -164,7 +163,7 @@ socket.connect() // 重新连接
 | 平台 | 连接 API | 并发 | 二进制 |
 | --- | --- | --- | --- |
 | 微信小程序 | `wx.connectSocket`（返回 SocketTask） | 多连接 | 原生 ArrayBuffer |
-| 支付宝小程序 | `my.connectSocket`（全局事件式） | **单连接** | base64 编解码（对调用方透明） |
+| 支付宝小程序 | `my.connectSocket({ multiple: true })`（返回 SocketTask） | 多连接 | base64 编解码（对调用方透明） |
 | 抖音小程序（字节系） | `tt.connectSocket`（返回 SocketTask） | 多连接 | 原生 ArrayBuffer |
 
 运行时通过 `wx` / `my` / `tt` 全局对象自动探测；`tt` 为整个字节系小程序（抖音 / 今日头条 / 西瓜 / 极速版等）共用。多端共存时优先级 微信 > 支付宝 > 抖音。
@@ -231,9 +230,6 @@ import type {
 
 **报错 `未检测到 wx/my/tt 的 WebSocket API`？**
 说明当前运行环境没有 `wx` / `my` / `tt` 全局（例如在 H5、Node、纯浏览器里跑）。请在小程序端运行，或通过 `io(uri, { transports: [自定义Transport] })` 显式注入 transport。
-
-**支付宝里开了多个连接互相干扰？**
-支付宝的 socket 是全局事件式、单连接模型，同一时刻只能有一条连接。请复用同一个 socket，避免同时创建多个连不同服务端的 Manager。
 
 **自定义 header 不生效？**
 这是平台限制，详见[鉴权](#鉴权)：请改用 `auth` 或 `query` 传递鉴权信息。
