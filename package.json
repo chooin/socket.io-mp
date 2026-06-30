@@ -1,6 +1,6 @@
 {
   "name": "socket.io-mp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "socket.io client for WeChat, Alipay & Douyin (ByteDance) mini-programs — official socket.io-client with a native mini-program WebSocket transport",
   "type": "module",
   "repository": {
