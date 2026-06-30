@@ -35,31 +35,31 @@ function toArrayBuffer(buf: Buffer): ArrayBuffer {
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 }
 
-// 把 wx.connectSocket mock 成由 ws 驱动的真实连接，让 WechatTransport 真正连上 server
-beforeEach(() => {
-  ;(globalThis as any).wx = {
-    connectSocket({ url }: { url: string }) {
-      const ws = new WS(url)
-      return {
-        onOpen: (cb: any) => ws.on('open', () => cb({})),
-        onMessage: (cb: any) =>
-          ws.on('message', (data: RawData, isBinary: boolean) =>
-            cb({ data: isBinary ? toArrayBuffer(data as Buffer) : data.toString() }),
-          ),
-        onClose: (cb: any) => ws.on('close', () => cb({})),
-        onError: (cb: any) => ws.on('error', (e: Error) => cb(e)),
-        send: ({ data }: { data: string | ArrayBuffer }) => ws.send(data),
-        close: () => ws.close(),
-      }
-    },
+// 用一条真实 ws 连接驱动假的 connectSocket，让 transport 真正连上 in-process server。
+// 微信与抖音同构(都返回 SocketTask、二进制原生 ArrayBuffer)，共用同一份实现。
+function wsBackedConnectSocket({ url }: { url: string }) {
+  const ws = new WS(url)
+  return {
+    onOpen: (cb: any) => ws.on('open', () => cb({})),
+    onMessage: (cb: any) =>
+      ws.on('message', (data: RawData, isBinary: boolean) =>
+        cb({ data: isBinary ? toArrayBuffer(data as Buffer) : data.toString() }),
+      ),
+    onClose: (cb: any) => ws.on('close', () => cb({})),
+    onError: (cb: any) => ws.on('error', (e: Error) => cb(e)),
+    send: ({ data }: { data: string | ArrayBuffer }) => ws.send(data),
+    close: () => ws.close(),
   }
-})
+}
 
-afterEach(() => {
-  delete (globalThis as any).wx
-})
+describe('e2e against a real socket.io server (wechat)', () => {
+  beforeEach(() => {
+    ;(globalThis as any).wx = { connectSocket: wsBackedConnectSocket }
+  })
+  afterEach(() => {
+    delete (globalThis as any).wx
+  })
 
-describe('e2e against a real socket.io server', () => {
   it('★ connects and reports connected', async () => {
     const socket = io(`ws://localhost:${port}`, { forceNew: true })
     try {
@@ -126,6 +126,42 @@ describe('e2e against a real socket.io server', () => {
       expect(welcome).toBe('admin')
     } finally {
       admin.disconnect()
+    }
+  })
+})
+
+describe('e2e against a real socket.io server (douyin)', () => {
+  beforeEach(() => {
+    ;(globalThis as any).tt = { connectSocket: wsBackedConnectSocket }
+  })
+  afterEach(() => {
+    delete (globalThis as any).tt
+  })
+
+  it('★ connects and reports connected via tt', async () => {
+    const socket = io(`ws://localhost:${port}`, { forceNew: true })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.on('connect', () => resolve())
+        socket.on('connect_error', reject)
+      })
+      expect(socket.connected).toBe(true)
+    } finally {
+      socket.disconnect()
+    }
+  })
+
+  it('round-trips binary (ArrayBuffer) via tt', async () => {
+    const socket = io(`ws://localhost:${port}`, { forceNew: true })
+    const out = new Uint8Array([1, 2, 3, 4])
+    try {
+      const echoed = await new Promise<ArrayBuffer>((resolve, reject) => {
+        socket.on('connect_error', reject)
+        socket.on('connect', () => socket.emit('bin', out.buffer, resolve))
+      })
+      expect(new Uint8Array(echoed)).toEqual(out)
+    } finally {
+      socket.disconnect()
     }
   })
 })
