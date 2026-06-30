@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`socket.io-mp` lets the **official** `socket.io-client` run inside WeChat (微信) and Alipay (支付宝)
-mini-programs. It is an *adapter*, not a protocol reimplementation: every protocol capability
+`socket.io-mp` lets the **official** `socket.io-client` run inside WeChat (微信), Alipay (支付宝) and
+Douyin/ByteDance (抖音/字节跳动) mini-programs. It is an *adapter*, not a protocol reimplementation: every protocol capability
 (namespaces, ACKs, reconnection, binary, multiplexing, timeouts) comes from the upstream
 `socket.io-client` / `engine.io-client` / `engine.io-parser`. The only code here replaces engine.io's
 lowest layer — the WebSocket `Transport` — so it calls the mini-program's native socket API instead of
@@ -36,19 +36,20 @@ upstream code.
 
 ```
 io(uri, opts)                         src/index.ts — wraps upstream io(), injects transport, forces websocket
-  └─ detectTransport()                src/transports/detect.ts — runtime-probes wx / my globals
+  └─ detectTransport()                src/transports/detect.ts — runtime-probes wx / my / tt globals
        ├─ WechatTransport             src/transports/wechat.ts
-       └─ AlipayTransport             src/transports/alipay.ts
+       ├─ AlipayTransport             src/transports/alipay.ts
+       └─ DouyinTransport             src/transports/douyin.ts — mirrors WechatTransport (tt global)
             └─ buildUri / encodeQuery src/transports/base.ts — replicates upstream ws URI building
   MpOptions / TransportCtor           src/types.ts — Partial<ManagerOptions & SocketOptions> + transports
 ```
 
-Both transports `extend` engine.io-client's `Transport` and implement `get name()` (always
+All three transports `extend` engine.io-client's `Transport` and implement `get name()` (always
 `'websocket'`), `doOpen`, `doClose`, `write`, calling the base class's `onOpen / onData / onClose /
 onError` to feed received data back into the engine. `buildUri` reproduces upstream's websocket
 `uri()` (schema from `secure`, IPv6 bracketing, dropping `:443`/`:80`, default path `/socket.io/`).
 
-### The platform asymmetry (the core reason there are two transports)
+### The platform asymmetry (the core reason there are separate transports)
 
 | | WeChat (`wx`) | Alipay (`my`) |
 | --- | --- | --- |
@@ -60,6 +61,13 @@ Because Alipay's API is a global singleton, `AlipayTransport` registers handlers
 class fields** (`onAliOpen`, etc.) so the *exact same reference* is passed to both `my.onSocket*` and
 `my.offSocket*`. Registering with one closure and unregistering with another would make `off*` a no-op
 and leak handlers across connections. Asserted in `tests/alipay-transport.test.ts`.
+
+**Douyin (`tt`) follows the WeChat model exactly** — `tt.connectSocket` returns a per-connection
+`SocketTask`, binary is native `ArrayBuffer` end-to-end (no base64), up to 5 concurrent connections.
+So `DouyinTransport` mirrors `WechatTransport` line-for-line, swapping only the `wx` global for `tt`.
+The `tt` global is shared across the whole ByteDance mini-app platform (抖音/今日头条/西瓜/极速版), so
+this one transport covers every ByteDance host. There is no canonical typings package for `tt`, so a
+minimal ambient declaration of the used subset lives in `src/transports/tt.d.ts` (no new dependency).
 
 ### Two non-obvious correctness details (don't "simplify" these away)
 
@@ -85,14 +93,15 @@ stays tiny. `minify: false` keeps the output debuggable in mini-program devtools
 Tests live in `tests/**/*.test.ts` (vitest, node environment, globals enabled — see
 `vitest.config.ts`). There is no real mini-program runtime in CI, so the platform globals are faked:
 
-- **Unit tests** (`wechat-transport`, `alipay-transport`, `detect`, `base`): install a fake `wx` / `my`
-  on `globalThis` whose `on*` methods stash the callbacks in an `h` map, then drive the lifecycle by
+- **Unit tests** (`wechat-transport`, `alipay-transport`, `douyin-transport`, `detect`, `base`): install
+  a fake `wx` / `my` / `tt` on `globalThis` whose `on*` methods stash the callbacks in an `h` map, then drive the lifecycle by
   hand — `h.open()`, `h.message({ data: '4hello' })`, etc. (`'4'` is engine.io's "message" packet
   type.) Protected members are reached via `(t as any)`.
-- **E2E** (`tests/e2e.test.ts`): the strongest signal. It still fakes `wx.connectSocket`, but backs it
-  with a **real** `ws` connection to a **real** in-process `socket.io` `Server`, exercising connect /
-  ACK round-trip / server-emit / binary / namespace through the full upstream stack. New tests there
-  should `disconnect()` in a `finally`.
+- **E2E** (`tests/e2e.test.ts`): the strongest signal. It fakes `wx` / `tt` `connectSocket` (via a
+  shared `wsBackedConnectSocket` factory, one describe per platform), but backs it with a **real** `ws`
+  connection to a **real** in-process `socket.io` `Server`, exercising connect / ACK round-trip /
+  server-emit / binary / namespace through the full upstream stack. New tests there should
+  `disconnect()` in a `finally`.
 
 When adding a transport feature, add both a unit test (handler wiring / encoding) and, where it touches
 the wire protocol, an e2e assertion.
@@ -103,8 +112,8 @@ the wire protocol, an e2e assertion.
   `vite.config.ts` — mini-program runtimes need es2018, and `useDefineForClassFields: false` keeps
   class fields as assignments so subclassing engine.io's `Transport` (whose constructor wires things
   up) behaves correctly. `strict` is on.
-- Guard every `wx` / `my` access with `typeof wx !== 'undefined'` (see `detect.ts`) — these globals do
-  not exist in Node/CI.
+- Guard every `wx` / `my` / `tt` access with `typeof wx !== 'undefined'` (see `detect.ts`) — these
+  globals do not exist in Node/CI.
 - Mini-programs only support `wss://` websocket (no HTTP polling) and have limited request-header
   support: authenticate via socket.io `auth` (CONNECT packet) or query string, not custom headers.
 - Commits: Conventional Commits with **Chinese** descriptions.
@@ -121,4 +130,4 @@ were removed) — publish manually: bump `version` in `package.json`, `npm login
 A consumer can bypass auto-detection by passing `io(uri, { transports: [CustomTransport] })`. A custom
 transport subclasses engine.io-client's `Transport` and implements the same four members (`get name()`
 → `'websocket'`, `doOpen`, `doClose`, `write`). This is the intended extension point — keep
-`detectTransport` limited to first-party `wx` / `my` and let everything else come in via injection.
+`detectTransport` limited to first-party `wx` / `my` / `tt` and let everything else come in via injection.

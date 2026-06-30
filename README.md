@@ -6,8 +6,9 @@
 ![socket.io](https://img.shields.io/badge/socket.io-v4-black.svg)
 ![微信小程序](https://img.shields.io/badge/微信小程序-%E2%9C%93-07C160.svg)
 ![支付宝小程序](https://img.shields.io/badge/支付宝小程序-%E2%9C%93-1677FF.svg)
+![抖音小程序](https://img.shields.io/badge/抖音小程序-%E2%9C%93-000000.svg)
 
-微信 / 支付宝小程序的 socket.io 客户端：直接复用官方 `socket.io-client`，仅把底层 WebSocket transport 换成小程序原生实现，**API 与官方完全一致**，严格对齐 socket.io v4。
+微信 / 支付宝 / 抖音小程序的 socket.io 客户端：直接复用官方 `socket.io-client`，仅把底层 WebSocket transport 换成小程序原生实现，**API 与官方完全一致**，严格对齐 socket.io v4。
 
 ## 目录
 
@@ -30,7 +31,7 @@
 
 ## 特性
 
-- **双端**：微信 / 支付宝，运行时自动探测 `wx` / `my`，无需手动区分平台
+- **三端**：微信 / 支付宝 / 抖音（及今日头条等字节系），运行时自动探测 `wx` / `my` / `tt`，无需手动区分平台
 - **协议 100% 对齐 v4**：基于官方 `socket.io-client`，namespace / ACK / 重连 / 二进制 / 多路复用全部原生支持
 - **零协议重写**：只替换 transport 层，行为与官方一致，升级 socket.io 即可获得新能力
 - **自带类型**：TypeScript 编写，产物 ESM + CJS + `.d.ts`，开箱即用
@@ -107,7 +108,7 @@ admin.on('welcome', (msg) => console.log(msg))
 
 ### 二进制数据
 
-直接 `emit` / 接收 `ArrayBuffer`（或 `TypedArray`）。微信走原生 ArrayBuffer，支付宝内部用 base64 编解码，**对调用方透明**：
+直接 `emit` / 接收 `ArrayBuffer`（或 `TypedArray`）。微信、抖音走原生 ArrayBuffer，支付宝内部用 base64 编解码，**对调用方透明**：
 
 ```ts
 const bytes = new Uint8Array([1, 2, 3, 4])
@@ -164,14 +165,15 @@ socket.connect() // 重新连接
 | --- | --- | --- | --- |
 | 微信小程序 | `wx.connectSocket`（返回 SocketTask） | 多连接 | 原生 ArrayBuffer |
 | 支付宝小程序 | `my.connectSocket`（全局事件式） | **单连接** | base64 编解码（对调用方透明） |
+| 抖音小程序（字节系） | `tt.connectSocket`（返回 SocketTask） | 多连接 | 原生 ArrayBuffer |
 
-运行时通过 `wx` / `my` 全局对象自动探测，两端共存时优先微信。
+运行时通过 `wx` / `my` / `tt` 全局对象自动探测；`tt` 为整个字节系小程序（抖音 / 今日头条 / 西瓜 / 极速版等）共用。多端共存时优先级 微信 > 支付宝 > 抖音。
 
 ## 框架适配（Taro / uni-app）
 
-在 Taro、uni-app 等框架里，如果运行时仍然存在 `wx` / `my` 全局（编译到小程序端通常如此），可直接使用，无需额外配置。
+在 Taro、uni-app 等框架里，如果运行时仍然存在 `wx` / `my` / `tt` 全局（编译到小程序端通常如此），可直接使用，无需额外配置。
 
-若运行在没有 `wx` / `my` 的环境（如编译到 H5 / RN），或想接入其它平台，可显式传入自定义 Transport 类跳过自动探测：
+若运行在没有 `wx` / `my` / `tt` 的环境（如编译到 H5 / RN），或想接入其它平台，可显式传入自定义 Transport 类跳过自动探测：
 
 ```ts
 import { io } from 'socket.io-mp'
@@ -186,7 +188,7 @@ io('wss://example.com', { transports: [MyTaroTransport] })
 - `doOpen` / `doClose` / `write`
 - 在底层连接的事件回调里调用基类的 `onOpen` / `onData` / `onClose` / `onError`
 
-可直接参考仓库内的 [`src/transports/wechat.ts`](./src/transports/wechat.ts)、[`src/transports/alipay.ts`](./src/transports/alipay.ts)。
+可直接参考仓库内的 [`src/transports/wechat.ts`](./src/transports/wechat.ts)、[`src/transports/alipay.ts`](./src/transports/alipay.ts)、[`src/transports/douyin.ts`](./src/transports/douyin.ts)。
 
 ## API
 
@@ -211,6 +213,7 @@ import {
   Socket, // 透传官方类
   WechatTransport, // 微信 transport（一般无需直接用）
   AlipayTransport, // 支付宝 transport
+  DouyinTransport, // 抖音 / 字节系 transport
 } from 'socket.io-mp'
 
 import type {
@@ -226,8 +229,8 @@ import type {
 **连不上 / 一直 `connect_error`？**
 先确认已在小程序后台「开发管理 → 服务器域名」里配置了 socket 合法域名（`wss://…`），且真机/体验版生效；本地开发可在开发者工具勾选「不校验合法域名」。
 
-**报错 `未检测到 wx/my 的 WebSocket API`？**
-说明当前运行环境没有 `wx` / `my` 全局（例如在 H5、Node、纯浏览器里跑）。请在小程序端运行，或通过 `io(uri, { transports: [自定义Transport] })` 显式注入 transport。
+**报错 `未检测到 wx/my/tt 的 WebSocket API`？**
+说明当前运行环境没有 `wx` / `my` / `tt` 全局（例如在 H5、Node、纯浏览器里跑）。请在小程序端运行，或通过 `io(uri, { transports: [自定义Transport] })` 显式注入 transport。
 
 **支付宝里开了多个连接互相干扰？**
 支付宝的 socket 是全局事件式、单连接模型，同一时刻只能有一条连接。请复用同一个 socket，避免同时创建多个连不同服务端的 Manager。
