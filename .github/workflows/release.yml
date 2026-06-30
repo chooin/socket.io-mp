@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
       - name: Checkout 🛎️
@@ -21,8 +20,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@chooin'
+          registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
       - name: Install dependencies 📦

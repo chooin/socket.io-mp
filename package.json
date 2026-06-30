@@ -1,5 +1,5 @@
 {
-  "name": "@chooin/socket.io-mp",
+  "name": "socket.io-mp",
   "version": "0.1.0",
   "description": "socket.io client for WeChat & Alipay mini-programs — official socket.io-client with a native mini-program WebSocket transport",
   "type": "module",
@@ -8,7 +8,7 @@
     "url": "git+https://github.com/chooin/socket.io-mp.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

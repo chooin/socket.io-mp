@@ -1,4 +1,4 @@
-# @chooin/socket.io-mp
+# socket.io-mp
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Types](https://img.shields.io/badge/types-included-blue.svg)
@@ -39,16 +39,8 @@
 
 ## 安装
 
-`@chooin` 作用域发布在 GitHub Packages，需要先在项目根 `.npmrc` 指向对应 registry：
-
-```ini
-# .npmrc
-@chooin:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-```
-
 ```bash
-pnpm add @chooin/socket.io-mp
+pnpm add socket.io-mp
 ```
 
 > `socket.io-client` 是本包的运行时依赖（`dependencies`），会随本包自动安装，无需单独安装。仅当你想在代码里直接 import 它（例如引用 `Socket` 类型）或自行锁定版本时，再显式 `pnpm add socket.io-client`。
@@ -56,7 +48,7 @@ pnpm add @chooin/socket.io-mp
 ## 快速开始
 
 ```ts
-import { io } from '@chooin/socket.io-mp'
+import { io } from 'socket.io-mp'
 
 const socket = io('wss://example.com', { auth: { token: 'xxx' } })
 
@@ -183,19 +175,19 @@ socket.connect()    // 重新连接
 
 ```ts
 // io 同时是默认导出和具名导出，二选一即可
-import { io } from '@chooin/socket.io-mp'
-// import io from '@chooin/socket.io-mp'
+import { io } from 'socket.io-mp'
+// import io from 'socket.io-mp'
 
 import {
   Manager, Socket,           // 透传官方类
-  WeixinTransport,           // 微信 transport（一般无需直接用）
+  WechatTransport,           // 微信 transport（一般无需直接用）
   AlipayTransport,           // 支付宝 transport
-} from '@chooin/socket.io-mp'
+} from 'socket.io-mp'
 
 import type {
   MpOptions, TransportCtor,
   ManagerOptions, SocketOptions,
-} from '@chooin/socket.io-mp'
+} from 'socket.io-mp'
 ```
 
 ## 高级：注入自定义 transport
@@ -203,7 +195,7 @@ import type {
 运行在 Taro / uni-app 等框架时，可显式传入自定义 Transport 类以跳过自动探测：
 
 ```ts
-import { io } from '@chooin/socket.io-mp'
+import { io } from 'socket.io-mp'
 import { MyTaroTransport } from './my-taro-transport'
 
 io('wss://example.com', { transports: [MyTaroTransport] })
@@ -215,7 +207,7 @@ io('wss://example.com', { transports: [MyTaroTransport] })
 - `doOpen` / `doClose` / `write`
 - 在底层连接的事件回调里调用基类 `onOpen` / `onData` / `onClose` / `onError`
 
-可直接参考 `src/transports/weixin.ts`、`src/transports/alipay.ts`。
+可直接参考 `src/transports/wechat.ts`、`src/transports/alipay.ts`。
 
 ## 开发
 
@@ -235,9 +227,9 @@ pnpm build                # 构建产物到 dist/
 
 ## 发布
 
-发布到 **GitHub Packages**，由打 tag 触发 `.github/workflows/release.yml`（push 到 `master` / PR 则触发 `ci.yml` 跑 typecheck / test / build）。
+发布到 **npm 公共仓库**，由打 tag 触发 `.github/workflows/release.yml`（push 到 `master` / PR 则触发 `ci.yml` 跑 typecheck / test / build）。
 
-1. **一次性配置**：仓库 Settings → Secrets and variables → Actions 新增 secret `NPM_TOKEN`，值为带 `write:packages` 权限的 GitHub Token。
+1. **一次性配置**：仓库 Settings → Secrets and variables → Actions 新增 secret `NPM_TOKEN`，值为 npmjs.com 的 **Automation** 类型 Access Token（需对本包有发布权限）。
 2. 升级 `package.json` 的 `version`（workflow 发布的是 `version` 字段而非 tag 名，二者需保持一致）。
 3. 打 tag 并推送，release workflow 会自动 test / build 并 `pnpm publish`：
 
@@ -246,7 +238,7 @@ npm version patch        # 改 version + 自动 commit + 打 vX.Y.Z tag
 git push --follow-tags   # 推送代码与 tag，触发发布
 ```
 
-> 本地手动 `pnpm publish` 也可以，但需先 `export NODE_AUTH_TOKEN=<你的 token>`（`.npmrc` 引用了它）。
+> 本地手动 `pnpm publish` 也可以，但需先 `npm login`，或 `export NODE_AUTH_TOKEN=<你的 npm token>`。
 
 ## 待验证（手动）
 

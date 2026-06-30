@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库是 `@chooin/socket.io-mp`：让官方 `socket.io-client` 在微信/支付宝小程序运行的适配包。
+本仓库是 `socket.io-mp`：让官方 `socket.io-client` 在微信/支付宝小程序运行的适配包。
 
 ## 命令
 

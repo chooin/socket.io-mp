@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this package is
 
-`@chooin/socket.io-mp` lets the **official** `socket.io-client` run inside WeChat (微信) and
+`socket.io-mp` lets the **official** `socket.io-client` run inside WeChat (微信) and
 Alipay (支付宝) mini-programs. It is an *adapter*, not a protocol reimplementation: every protocol
 capability (namespaces, ACKs, reconnection, binary, multiplexing, timeouts) comes from the upstream
 `socket.io-client` / `engine.io-client` / `engine.io-parser`. The only thing this package writes is a
@@ -30,18 +30,18 @@ Package manager is **pnpm@10** — do not use npm/yarn.
 
 ## Release
 
-Publishing targets **GitHub Packages** (`@chooin` scope) and is **tag-triggered** by
-`.github/workflows/release.yml` (`on: push: tags`). `.github/workflows/ci.yml` runs
-typecheck/test/build on pushes to `master` and on PRs.
+Publishing targets the **public npm registry** (unscoped package `socket.io-mp`) and is
+**tag-triggered** by `.github/workflows/release.yml` (`on: push: tags`). `.github/workflows/ci.yml`
+runs typecheck/test/build on pushes to `master` and on PRs.
 
 - The release job publishes the `version` field in `package.json`, **not** the tag string — bump
   `version` and tag together or you ship a mismatched version.
-- One-time setup: add a repo secret `NPM_TOKEN` (a GitHub token with `write:packages`); the job
-  passes it as `NODE_AUTH_TOKEN`. (It already declares `permissions: packages: write`, so swapping
-  that line to the built-in `GITHUB_TOKEN` also works and needs no secret.)
-- What routes the publish: `repository` + `publishConfig.registry` in `package.json` and the
-  committed `.npmrc` (scope → GitHub Packages). Don't remove them. The `${NODE_AUTH_TOKEN}` warning
-  from `.npmrc` is expected locally (the var only exists in CI).
+- One-time setup: add a repo secret `NPM_TOKEN` — an **npmjs.com Automation access token** with
+  publish rights to this package; the job passes it as `NODE_AUTH_TOKEN`. (Same secret *name* as the
+  old GitHub Packages setup, but a different credential — an npm token, not a GitHub PAT.)
+- What routes the publish: `publishConfig.registry` (→ `registry.npmjs.org`) in `package.json` and
+  the workflow's `setup-node` `registry-url` (which generates the auth `.npmrc` in CI). The package
+  is unscoped, so npm publishes it publicly by default — no `.npmrc` is committed.
 - Cut a release: bump `version` → commit → `git tag vX.Y.Z` → `git push --follow-tags`.
 
 ## Architecture
@@ -53,7 +53,7 @@ user-injected. Everything downstream of the transport is unmodified upstream cod
 ```
 io(uri, opts)                         src/index.ts — wraps upstream io(), injects transport
   └─ detectTransport()                src/transports/detect.ts — runtime-probes wx / my globals
-       ├─ WeixinTransport             src/transports/weixin.ts
+       ├─ WechatTransport             src/transports/wechat.ts
        └─ AlipayTransport             src/transports/alipay.ts
             └─ buildUri / encodeQuery src/transports/base.ts — replicates upstream ws URI building
 ```
@@ -98,7 +98,7 @@ devtools. `vite-plugin-dts` rolls all types into a single `dist/index.d.ts`.
 Tests live in `tests/**/*.test.ts` (vitest, node environment, globals enabled). There is no real
 mini-program runtime in CI, so the platform globals are faked:
 
-- **Unit tests** (`weixin-transport`, `alipay-transport`, `detect`): install a fake `wx` / `my` on
+- **Unit tests** (`wechat-transport`, `alipay-transport`, `detect`): install a fake `wx` / `my` on
   `globalThis` whose `on*` methods stash the callbacks in an `h` map, then drive the lifecycle by
   hand — `h.open()`, `h.message({ data: '4hello' })`, etc. (`'4'` is engine.io's "message" packet
   type.) Protected members are reached via `(t as any)`.
@@ -120,7 +120,7 @@ touches the wire protocol, an e2e assertion.
   do not exist in Node/CI.
 - Mini-programs only support `wss://` websocket (no HTTP polling) and have limited request-header
   support: authenticate via socket.io `auth` (CONNECT packet) or query string, not custom headers.
-- `@chooin` scope publishes to GitHub Packages (see `.npmrc`).
+- Published unscoped to the **public npm registry** (`socket.io-mp`).
 - Commits: Conventional Commits with **Chinese** descriptions.
 
 ## Extending to other frameworks (Taro / uni-app)
