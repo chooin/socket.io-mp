@@ -16,5 +16,6 @@ export default io
 export { Manager, Socket }
 export { WechatTransport } from './transports/wechat'
 export { AlipayTransport } from './transports/alipay'
+export { DouyinTransport } from './transports/douyin'
 export type { MpOptions, TransportCtor } from './types'
 export type { ManagerOptions, SocketOptions } from 'socket.io-client'
