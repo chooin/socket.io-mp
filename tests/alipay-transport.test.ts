@@ -148,4 +148,36 @@ describe('AlipayTransport', () => {
     expect(my.offSocketClose).toHaveBeenCalledWith((t as any).onAliClose)
     expect(my.offSocketError).toHaveBeenCalledWith((t as any).onAliError)
   })
+
+  it('被动关闭(服务器/网络断开)也要反注册全局 handler,避免泄漏', () => {
+    const { my, h } = installFakeMy()
+    const t = new AlipayTransport(makeOpts())
+    // 模拟上游 engine.io Socket:监听 transport 的 "close",回过头调用
+    // transport.close()(等价 engine.io-client socket.js _onClose -> transport.close())。
+    // 被动关闭时基类 onClose 已把 readyState 置 "closed",故 close() 会跳过 doClose()。
+    ;(t as any).on('close', () => t.close())
+    t.open()
+    h.open() // readyState = "open"
+    h.close() // 被动关闭:支付宝触发全局 onSocketClose
+    // 否则旧 handler 永久泄漏在全局 my 上,旧 transport 实例无法 GC
+    expect(my.offSocketOpen).toHaveBeenCalledWith((t as any).onAliOpen)
+    expect(my.offSocketMessage).toHaveBeenCalledWith((t as any).onAliMessage)
+    expect(my.offSocketClose).toHaveBeenCalledWith((t as any).onAliClose)
+    expect(my.offSocketError).toHaveBeenCalledWith((t as any).onAliError)
+  })
+
+  it('doOpen 在 connectSocket 抛错时反注册 handler 并发出 error', () => {
+    const { my } = installFakeMy()
+    my.connectSocket = vi.fn(() => {
+      throw new Error('connect failed')
+    }) as any
+    const t = new AlipayTransport(makeOpts())
+    const errored = vi.fn()
+    ;(t as any).on('error', errored)
+    expect(() => t.open()).not.toThrow()
+    expect(errored).toHaveBeenCalled()
+    // 建连失败时已注册的全局 handler 也必须反注册,否则泄漏
+    expect(my.offSocketOpen).toHaveBeenCalledWith((t as any).onAliOpen)
+    expect(my.offSocketError).toHaveBeenCalledWith((t as any).onAliError)
+  })
 })

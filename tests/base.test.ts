@@ -40,4 +40,9 @@ describe('buildUri', () => {
       'ws://h/socket.io/',
     )
   })
+  it('omits the port when port is 0 (对齐上游 _port 的 falsy 语义)', () => {
+    expect(buildUri({ secure: false, hostname: 'h', port: 0, path: '/socket.io/' }, {})).toBe(
+      'ws://h/socket.io/',
+    )
+  })
 })

@@ -118,4 +118,18 @@ describe('WechatTransport', () => {
     h.close()
     expect(closed).toHaveBeenCalled()
   })
+
+  it('doOpen 在 connectSocket 抛错时发出 error 事件而非向上抛出', () => {
+    ;(globalThis as any).wx = {
+      connectSocket: vi.fn(() => {
+        throw new Error('connect failed')
+      }),
+    }
+    const t = new WechatTransport(makeOpts())
+    const errored = vi.fn()
+    ;(t as any).on('error', errored)
+    // 建连异常必须转成 transport error 事件,交给 engine.io 走重连/降级,而非逃逸
+    expect(() => t.open()).not.toThrow()
+    expect(errored).toHaveBeenCalled()
+  })
 })

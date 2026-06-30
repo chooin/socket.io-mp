@@ -33,6 +33,10 @@ export class AlipayTransport extends Transport {
   }
 
   private readonly onAliClose = (): void => {
+    // 被动关闭(服务器/网络断开)走这里:engine.io 基类 onClose 会先把 readyState
+    // 置 "closed",随后上游 _onClose 调 transport.close() 会因此跳过 doClose(),
+    // 所以必须在这里主动反注册,否则全局 handler 永久泄漏、旧实例无法 GC。
+    this.cleanup()
     this.onClose()
   }
 
@@ -45,12 +49,23 @@ export class AlipayTransport extends Transport {
     my.onSocketMessage(this.onAliMessage)
     my.onSocketClose(this.onAliClose)
     my.onSocketError(this.onAliError)
-    const query = this.query as Record<string, string>
-    my.connectSocket({ url: buildUri(this.opts as any, query) })
+    try {
+      const query = this.query as Record<string, string>
+      my.connectSocket({ url: buildUri(this.opts as any, query) })
+    } catch (err) {
+      // 建连失败:先反注册刚注册的全局 handler(避免泄漏)再转成 error 事件。
+      this.cleanup()
+      this.onError('websocket error', err as Error)
+    }
   }
 
   protected doClose(): void {
     my.closeSocket({})
+    this.cleanup()
+  }
+
+  /** 反注册全部全局事件 handler(用注册时的同一引用);幂等,可重复调用。 */
+  private cleanup(): void {
     my.offSocketOpen(this.onAliOpen)
     my.offSocketMessage(this.onAliMessage)
     my.offSocketClose(this.onAliClose)
@@ -62,6 +77,9 @@ export class AlipayTransport extends Transport {
     this.writable = false
     let remaining = packets.length
     for (const packet of packets) {
+      // 第二参恒传 true(理由同 wechat.ts):supportsBinary=false 会触发 engine.io-parser 的
+      // `new Blob()` + FileReader,小程序无此 API。二进制改由下方 isBuffer 分支经
+      // my.arrayBufferToBase64 处理,与协议层的 base64(b 前缀)无关。
       encodePacket(packet, true, (data) => {
         if (typeof data === 'string') {
           my.sendSocketMessage({ data, isBuffer: false })

@@ -14,7 +14,8 @@ export function buildUri(
   let host = opts.hostname || 'localhost'
   if (host.indexOf(':') !== -1) host = '[' + host + ']' // IPv6
 
-  const portStr = opts.port == null ? '' : String(opts.port)
+  // 对齐上游 _port() 的 `if (this.opts.port && …)`:port 为 falsy(0/''/null/undefined)时不拼端口
+  const portStr = opts.port ? String(opts.port) : ''
   const needsPort =
     portStr !== '' &&
     !((schema === 'wss' && portStr === '443') || (schema === 'ws' && portStr === '80'))
