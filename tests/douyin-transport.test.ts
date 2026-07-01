@@ -118,4 +118,31 @@ describe('DouyinTransport', () => {
     h.close()
     expect(closed).toHaveBeenCalled()
   })
+
+  it('doOpen 在 connectSocket 抛错时发出 error 事件而非向上抛出', () => {
+    ;(globalThis as any).tt = {
+      connectSocket: vi.fn(() => {
+        throw new Error('connect failed')
+      }),
+    }
+    const t = new DouyinTransport(makeOpts())
+    const errored = vi.fn()
+    ;(t as any).on('error', errored)
+    // 建连异常必须转成 transport error 事件,交给 engine.io 走重连/降级,而非逃逸
+    expect(() => t.open()).not.toThrow()
+    expect(errored).toHaveBeenCalled()
+  })
+
+  it('write normalizes a non-zero-offset TypedArray view to an exact ArrayBuffer', () => {
+    const { task } = installFakeTt()
+    const t = new DouyinTransport(makeOpts())
+    t.open()
+    // 8 字节底层 buffer,取 offset=4、length=4 的视图(Node Buffer / subarray 的常见形态)
+    const backing = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]).buffer
+    ;(t as any).write([{ type: 'message', data: new Uint8Array(backing, 4, 4) }])
+    const sent = task.send.mock.calls[0][0].data
+    expect(sent).toBeInstanceOf(ArrayBuffer)
+    expect(sent.byteLength).toBe(4)
+    expect(new Uint8Array(sent)).toEqual(new Uint8Array([4, 5, 6, 7]))
+  })
 })

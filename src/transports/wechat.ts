@@ -43,7 +43,16 @@ export class WechatTransport extends Transport {
       // engine.io-parser 会用 `new Blob()` + FileReader 把二进制编码成 base64,而小程序
       // 无 Blob/FileReader 会运行时崩溃。小程序原生支持二进制帧,故 forceBase64 在此无意义。
       encodePacket(packet, true, (data) => {
-        this.task?.send({ data: data as string | ArrayBuffer })
+        // 二进制可能是 ArrayBuffer,也可能是 TypedArray/DataView(用户 emit Uint8Array,或底层
+        // 为 pooled buffer 的 Node Buffer / subarray 等):取底层精确字节,避免把非零 offset 的
+        // view 当整个 buffer 误发。wx.SocketTask.send 只接受 string|ArrayBuffer(与支付宝同理)。
+        const payload: string | ArrayBuffer =
+          typeof data === 'string'
+            ? data
+            : ArrayBuffer.isView(data)
+              ? (data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer)
+              : (data as ArrayBuffer)
+        this.task?.send({ data: payload })
         if (--remaining === 0) {
           // Defer drain so callers don't re-enter write() synchronously
           // (encodePacket callbacks fire sync; without this setTimeout the

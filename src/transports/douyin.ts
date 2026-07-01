@@ -19,16 +19,23 @@ export class DouyinTransport extends Transport {
   }
 
   protected doOpen(): void {
-    const query = this.query as Record<string, string>
-    const url = buildUri(this.opts as any, query)
-    this.task = tt.connectSocket({
-      url,
-      header: (this.opts as any).extraHeaders,
-    })
-    this.task.onOpen(() => this.onOpen())
-    this.task.onMessage((res) => this.onData(res.data as RawData))
-    this.task.onClose(() => this.onClose())
-    this.task.onError((res) => this.onError('websocket error', new Error(res.errMsg)))
+    try {
+      const query = this.query as Record<string, string>
+      const url = buildUri(this.opts as any, query)
+      this.task = tt.connectSocket({
+        url,
+        header: (this.opts as any).extraHeaders,
+      })
+      this.task.onOpen(() => this.onOpen())
+      this.task.onMessage((res) => this.onData(res.data as RawData))
+      this.task.onClose(() => this.onClose())
+      this.task.onError((res) => this.onError('websocket error', new Error(res.errMsg)))
+    } catch (err) {
+      // 建连失败(URL 非法、超过并发上限等)转成 transport error 事件,交给 engine.io 走
+      // 重连/降级,而非让异常逃逸——否则初次连接会直接抛出 io(),重连时还会把 Manager 的
+      // _reconnecting 永久卡在 true(与 WechatTransport/AlipayTransport 保持一致)。
+      this.onError('websocket error', err as Error)
+    }
   }
 
   protected doClose(): void {
@@ -42,7 +49,16 @@ export class DouyinTransport extends Transport {
     let remaining = packets.length
     for (const packet of packets) {
       encodePacket(packet, true, (data) => {
-        this.task?.send({ data: data as string | ArrayBuffer })
+        // 二进制可能是 ArrayBuffer,也可能是 TypedArray/DataView(用户 emit Uint8Array,或底层
+        // 为 pooled buffer 的 Node Buffer / subarray 等):取底层精确字节,避免把非零 offset 的
+        // view 当整个 buffer 误发。tt.SocketTask.send 只接受 string|ArrayBuffer(与支付宝同理)。
+        const payload: string | ArrayBuffer =
+          typeof data === 'string'
+            ? data
+            : ArrayBuffer.isView(data)
+              ? (data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer)
+              : (data as ArrayBuffer)
+        this.task?.send({ data: payload })
         if (--remaining === 0) {
           // Defer drain so callers don't re-enter write() synchronously
           // (encodePacket callbacks fire sync; without this setTimeout the
