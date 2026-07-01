@@ -36,4 +36,10 @@ describe('detectTransport', () => {
   it('throws a helpful error when neither exists', () => {
     expect(() => detectTransport()).toThrow(/wx\/my/)
   })
+  it('falls through a null-valued global instead of crashing (typeof null === "object")', () => {
+    // 某些兼容层/模拟器会把未使用的平台全局显式置为 null;不能因此崩在 null.connectSocket 上
+    ;(globalThis as any).wx = null
+    ;(globalThis as any).my = { connectSocket: () => ({}) }
+    expect(detectTransport()).toBe(AlipayTransport)
+  })
 })
